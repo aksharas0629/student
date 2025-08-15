@@ -32,7 +32,7 @@ Hi! My name is [Your Full Name].
     KASM
 </a>
 <a href="https://vscode.dev/" class="button small" style="background-color: #d38a4bff">
-    <span style="color: #FFFFFF">VSCODE</span>
+    <span style="color: #ff9494ff">VSCODE</span>
 </a>
 
 <br>
