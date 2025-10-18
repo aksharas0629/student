@@ -13,7 +13,6 @@ Replaced the vulnerable echo with an escaped version using markupsafe.escape(nam
 Added a basic Content-Security-Policy header (applied to text/html responses) to disallow inline scripts as an additional mitigation.
 Discovery (what I sent and what happened)
 name=<script>alert(1)</script>
-# URL encoded form: ?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E
 What happened in the browser (during discovery, before the fix):
 The server reflected the payload into the HTML response unescaped, producing a body such as:
 <h2>Hello <script>alert(1)</script></h2>
