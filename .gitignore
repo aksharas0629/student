@@ -22,3 +22,4 @@ _notebooks/CSP/big-ideas/big-idea-3-part-1-fundamentals/Period3/2024-9-27-fundam
 .bundle
 vendor/*
 package-lock.json
+.jekyll-metadata

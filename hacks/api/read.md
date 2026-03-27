@@ -5,7 +5,6 @@ permalink: /api/read
 show_reading_time: false
 ---
 
-
 <h1>Flask app access using JavaScript</h1>
 
 <p>This code extracts data "live" from a local Web Server with JavaScript fetch.  Additionally, it formats the data into a table.</p>

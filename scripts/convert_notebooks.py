@@ -19,6 +19,18 @@ notebook_directory = "_notebooks"
 destination_directory = "_posts"
 mermaid_output_directory = "assets/mermaid"
 
+# Comment patterns for different languages
+CODE_RUNNER_PATTERNS = {
+    'javascript': r'^//\s*CODE_RUNNER:\s*(.+)$',
+    'python': r'^#\s*CODE_RUNNER:\s*(.+)$',
+    'java': r'^//\s*CODE_RUNNER:\s*(.+)$',
+}
+
+# UI_RUNNER pattern for HTML cells
+UI_RUNNER_PATTERN = r'^<!--\s*UI_RUNNER:\s*(.+)\s*-->$'
+
+# GAME_RUNNER pattern for GameEngine cells (JavaScript only)
+GAME_RUNNER_PATTERN = r'^//\s*GAME_RUNNER:\s*(.+)$'
 
 def error_cleanup(notebook_file):
     destination_file = os.path.basename(notebook_file).replace(".ipynb", "_IPYNB_2_.md")
@@ -54,15 +66,532 @@ def ensure_directory_exists(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
 
+def fix_js_code_blocks(markdown):
+    # This regex finds ```python blocks starting with %%js and replaces with ```javascript
+    # but keeps the %%js line for developers to see
+    pattern = re.compile(r"```python\n%%js\n", re.MULTILINE)
+    markdown = pattern.sub("```javascript\n%%js\n", markdown)
+    # Optionally, handle blocks with no newline after %%js
+    pattern2 = re.compile(r"```python\r?\n%%js\r?\n", re.MULTILINE)
+    markdown = pattern2.sub("```javascript\n%%js\n", markdown)
+    return markdown
+
+
+def extract_code_runner_metadata(cell_source, language):
+    """Extract CODE_RUNNER challenge from cell comments"""
+    if language not in CODE_RUNNER_PATTERNS:
+        return None
+    
+    pattern = CODE_RUNNER_PATTERNS[language]
+    lines = cell_source.split('\n')
+    
+    for line in lines:
+        match = re.match(pattern, line.strip(), re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    
+    return None
+
+
+def clean_code_for_runner(cell_source, language):
+    """Remove magic commands, CODE_RUNNER comments, and language-specific artifacts from code"""
+    lines = cell_source.split('\n')
+    cleaned_lines = []
+    
+    # Pattern for CODE_RUNNER comments
+    if language in CODE_RUNNER_PATTERNS:
+        pattern = CODE_RUNNER_PATTERNS[language]
+    else:
+        pattern = None
+    
+    # Find index of last non-whitespace line for Java .main(null) removal
+    last_content_index = -1
+    if language == 'java':
+        for i in range(len(lines) - 1, -1, -1):
+            if lines[i].strip():
+                last_content_index = i
+                break
+    
+    for i, line in enumerate(lines):
+        # Skip %%js magic command (JavaScript first line)
+        if language == 'javascript' and i == 0 and line.strip().startswith('%%js'):
+            continue
+        # Skip any other magic commands
+        if line.strip().startswith('%%'):
+            continue
+        # Skip CODE_RUNNER comment lines
+        if pattern and re.match(pattern, line.strip(), re.IGNORECASE):
+            continue
+        # Skip Java .main(null) call (last non-whitespace line)
+        if language == 'java' and i == last_content_index:
+            if re.match(r'^\w+\.main\s*\(\s*null\s*\)\s*;?\s*$', line.strip()):
+                continue
+        cleaned_lines.append(line)
+    
+    # Join lines and strip trailing whitespace
+    result = '\n'.join(cleaned_lines).rstrip()
+    
+    # Remove leading empty lines
+    while result.startswith('\n'):
+        result = result[1:]
+    
+    return result
+
+
+def generate_runner_id(permalink, index):
+    """Generate runner_id from permalink"""
+    # Convert /javascript/json/lesson to javascript-json-lesson-0
+    clean_permalink = permalink.strip('/').replace('/', '-')
+    return f"{clean_permalink}-{index}"
+
+
+def detect_cell_language(cell):
+    """Detect the programming language of a code cell"""
+    source = cell.get('source', '')
+    lines = source.split('\n')
+    
+    # JavaScript: first line is %%js magic command
+    if lines and lines[0].strip().startswith('%%js'):
+        return 'javascript'
+    
+    # Java: last non-whitespace line matches ClassName.main(null);
+    # Find last non-empty line
+    last_line = ''
+    for line in reversed(lines):
+        if line.strip():
+            last_line = line.strip()
+            break
+    if re.match(r'^\w+\.main\s*\(\s*null\s*\)\s*;?\s*$', last_line):
+        return 'java'
+    
+    # Default to python
+    return 'python'
+
+
+def process_code_runner_cells(notebook, permalink):
+    """Process notebook cells and add code-runner metadata"""
+    runner_index = 0
+    processed_cells = []
+    
+    for cell in notebook.cells:
+        if cell.cell_type == 'code':
+            language = detect_cell_language(cell)
+            challenge = extract_code_runner_metadata(cell.source, language)
+            
+            if challenge:
+                # Store metadata for later use
+                cell['metadata']['code_runner'] = {
+                    'challenge': challenge,
+                    'language': language,
+                    'runner_id': generate_runner_id(permalink, runner_index),
+                    'code': clean_code_for_runner(cell.source, language)
+                }
+                runner_index += 1
+                
+                # Clear outputs for cells with code-runner (outputs are redundant)
+                cell['outputs'] = []
+                cell['execution_count'] = None
+        
+        processed_cells.append(cell)
+    
+    notebook.cells = processed_cells
+    return notebook
+
+
+def extract_ui_runner_metadata(cell_source):
+    """Extract UI_RUNNER description from HTML cell comments"""
+    lines = cell_source.split('\n')
+    
+    for line in lines:
+        match = re.match(UI_RUNNER_PATTERN, line.strip(), re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    
+    return None
+
+
+def extract_game_runner_metadata(cell_source):
+    """Extract GAME_RUNNER challenge and options from JavaScript cell comments
+    
+    Format: // GAME_RUNNER: challenge text | hide_edit: true
+    Returns: (challenge, options_dict)
+    """
+    lines = cell_source.split('\n')
+    
+    for line in lines:
+        match = re.match(GAME_RUNNER_PATTERN, line.strip(), re.IGNORECASE)
+        if match:
+            content = match.group(1).strip()
+            
+            # Parse options after pipe separator
+            if '|' in content:
+                parts = content.split('|', 1)
+                challenge = parts[0].strip()
+                options_str = parts[1].strip()
+                
+                # Parse options (format: key: value, key2: value2)
+                options = {}
+                for option in options_str.split(','):
+                    if ':' in option:
+                        key, value = option.split(':', 1)
+                        key = key.strip()
+                        value = value.strip().lower()
+                        # Convert string booleans to actual booleans
+                        if value == 'true':
+                            options[key] = True
+                        elif value == 'false':
+                            options[key] = False
+                        else:
+                            options[key] = value
+                
+                return (challenge, options)
+            else:
+                return (content, {})
+    
+    return None
+
+
+def clean_game_code(cell_source):
+    """Remove magic commands and GAME_RUNNER comments from game code"""
+    lines = cell_source.split('\n')
+    cleaned_lines = []
+    
+    for i, line in enumerate(lines):
+        # Skip %%js magic command (JavaScript first line)
+        if i == 0 and line.strip().startswith('%%js'):
+            continue
+        # Skip any other magic commands
+        if line.strip().startswith('%%'):
+            continue
+        # Skip GAME_RUNNER comment lines
+        if re.match(GAME_RUNNER_PATTERN, line.strip(), re.IGNORECASE):
+            continue
+        cleaned_lines.append(line)
+    
+    # Join lines and strip trailing whitespace
+    result = '\n'.join(cleaned_lines).rstrip()
+    
+    # Remove leading empty lines
+    while result.startswith('\n'):
+        result = result[1:]
+    
+    return result
+
+
+def clean_html_for_runner(cell_source, runner_index):
+    """Clean HTML cell and make IDs unique"""
+    lines = cell_source.split('\n')
+    cleaned_lines = []
+    in_script = False
+    html_lines = []
+    script_lines = []
+    
+    for line in lines:
+        # Skip %%html magic command
+        if line.strip().startswith('%%html'):
+            continue
+        # Skip UI_RUNNER comment
+        if re.match(UI_RUNNER_PATTERN, line.strip(), re.IGNORECASE):
+            continue
+        # Track script sections
+        if '<script>' in line:
+            in_script = True
+            continue
+        elif '</script>' in line:
+            in_script = False
+            continue
+        
+        if in_script:
+            script_lines.append(line)
+        else:
+            html_lines.append(line)
+    
+    html_str = '\n'.join(html_lines)
+    script_str = '\n'.join(script_lines)
+    
+    # Make IDs unique by adding suffix
+    unique_suffix = f"-ui{runner_index}"
+    
+    # Find and replace all id attributes
+    id_pattern = r'id="([^"]+)"'
+    ids_found = re.findall(id_pattern, html_str)
+    
+    for old_id in ids_found:
+        new_id = old_id + unique_suffix
+        html_str = html_str.replace(f'id="{old_id}"', f'id="{new_id}"')
+        # Update getElementById references in JavaScript
+        script_str = script_str.replace(f"getElementById('{old_id}')", f"getElementById('{new_id}')")
+        script_str = script_str.replace(f'getElementById("{old_id}")', f'getElementById("{new_id}")')
+    
+    return html_str, script_str
+
+
+def process_ui_runner_cells(notebook, permalink):
+    """Process notebook cells and add ui-runner metadata"""
+    runner_index = 0
+    processed_cells = []
+    
+    for cell in notebook.cells:
+        if cell.cell_type == 'raw' or (cell.cell_type == 'code' and cell.source.strip().startswith('%%html')):
+            description = extract_ui_runner_metadata(cell.source)
+            
+            if description:
+                html_content, script_content = clean_html_for_runner(cell.source, runner_index)
+                
+                # Store metadata for later use
+                cell['metadata']['ui_runner'] = {
+                    'description': description,
+                    'runner_id': generate_runner_id(permalink, runner_index),
+                    'html': html_content,
+                    'script': script_content
+                }
+                runner_index += 1
+        
+        processed_cells.append(cell)
+    
+    notebook.cells = processed_cells
+    return notebook
+
+
+def process_game_runner_cells(notebook, permalink):
+    """Process notebook cells and add game-runner metadata"""
+    runner_index = 0
+    processed_cells = []
+    
+    for cell in notebook.cells:
+        if cell.cell_type == 'code':
+            # Check if it's a JavaScript cell with GAME_RUNNER
+            source = cell.get('source', '')
+            if source.strip().startswith('%%js'):
+                result = extract_game_runner_metadata(source)
+                
+                if result:
+                    challenge, options = result
+                    
+                    # Store metadata for later use
+                    cell['metadata']['game_runner'] = {
+                        'challenge': challenge,
+                        'runner_id': generate_runner_id(permalink, runner_index),
+                        'code': clean_game_code(source),
+                        'options': options
+                    }
+                    runner_index += 1
+                    
+                    # Clear outputs for cells with game-runner (outputs are redundant)
+                    cell['outputs'] = []
+                    cell['execution_count'] = None
+        
+        processed_cells.append(cell)
+    
+    notebook.cells = processed_cells
+    return notebook
+
+
+def inject_code_runners(markdown, notebook, front_matter=None):
+    """Inject code-runner includes after code blocks with metadata
+    
+    If front_matter contains 'challenge_submit: true', also injects:
+    - challenge-submit-button.html after each code-runner
+    - lesson-submit-button.html at the end of the document
+    """
+    if front_matter is None:
+        front_matter = {}
+    
+    challenge_submit_enabled = front_matter.get('challenge_submit', False)
+    permalink = front_matter.get('permalink', '')
+    # Generate lesson_key from permalink (e.g., "/csa/frqs/2019/3" -> "csa-frqs-2019-3")
+    lesson_key = permalink.strip('/').replace('/', '-') if permalink else 'unknown-lesson'
+    
+    # Build list of UI runner cells with their IDs for detection
+    ui_runner_cells = [c for c in notebook.cells if 'ui_runner' in c.get('metadata', {})]
+    ui_runner_ids = []
+    for ui_cell in ui_runner_cells:
+        # Extract original IDs from the cell source to help detect its output
+        source = ui_cell.get('source', '')
+        ids = re.findall(r'id="([^"]+)"', source)
+        ui_runner_ids.append(ids)
+    
+    lines = markdown.split('\n')
+    result = []
+    in_code_block = False
+    code_block_content = []
+    code_cell_count = 0
+    code_runner_count = 0
+    ui_runner_count = 0
+    in_ui_runner_output = False
+    ui_runner_depth = 0
+    
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        
+        # Check if we're starting a UI_RUNNER output section
+        if not in_ui_runner_output and ui_runner_count < len(ui_runner_cells):
+            # Look for HTML that matches UI runner IDs
+            if '<div' in line or '<script>' in line:
+                # Check if this line contains any of the expected IDs for the next UI runner
+                if ui_runner_count < len(ui_runner_ids):
+                    expected_ids = ui_runner_ids[ui_runner_count]
+                    if any(f'id="{id_name}"' in line for id_name in expected_ids):
+                        in_ui_runner_output = True
+                        ui_runner_depth = 0
+                        
+                        # Inject the processed UI runner
+                        ui_cell = ui_runner_cells[ui_runner_count]
+                        runner_data = ui_cell['metadata']['ui_runner']
+                        
+                        result.append('<div class="ui-runner">')
+                        result.append(runner_data['html'])
+                        result.append('<script>')
+                        result.append('(function() {')
+                        result.append(runner_data['script'])
+                        result.append('})();')
+                        result.append('</script>')
+                        result.append('</div>')
+                        result.append('')
+                        
+                        ui_runner_count += 1
+        
+        # If we're in UI runner output, track depth and skip until we're done
+        if in_ui_runner_output:
+            if '<div' in line or '<script>' in line:
+                ui_runner_depth += 1
+            if '</div>' in line or '</script>' in line:
+                ui_runner_depth -= 1
+                if ui_runner_depth <= 0:
+                    in_ui_runner_output = False
+            i += 1
+            continue
+        
+        # Detect code block start
+        if line.startswith('```'):
+            if not in_code_block:
+                in_code_block = True
+                code_block_content = [line]
+            else:
+                # End of code block
+                in_code_block = False
+                code_block_content.append(line)
+                
+                # Check if this corresponds to a code cell with runner metadata
+                code_cell = None
+                current_code_cell = 0
+                for cell in notebook.cells:
+                    if cell.cell_type == 'code':
+                        if current_code_cell == code_cell_count:
+                            code_cell = cell
+                            break
+                        current_code_cell += 1
+                
+                code_cell_count += 1
+                
+                # Add code-runner if metadata exists
+                if code_cell and 'code_runner' in code_cell.get('metadata', {}):
+                    runner_data = code_cell['metadata']['code_runner']
+                    result.append('')
+                    # Add liquid captures and code-runner include
+                    result.append('{% capture challenge' + str(code_runner_count) + ' %}')
+                    result.append(runner_data['challenge'])
+                    result.append('{% endcapture %}')
+                    result.append('')
+                    result.append('{% capture code' + str(code_runner_count) + ' %}')
+                    result.append(runner_data['code'])
+                    result.append('{% endcapture %}')
+                    result.append('')
+                    result.append('{% capture source' + str(code_runner_count) + ' %}')
+                    # Add the source code block content (already formatted markdown)
+                    result.extend(code_block_content)
+                    result.append('{% endcapture %}')
+                    result.append('')
+                    result.append('{% include code-runner.html')
+                    result.append('   runner_id="' + runner_data['runner_id'] + '"')
+                    result.append('   language="' + runner_data['language'] + '"')
+                    result.append('   challenge=challenge' + str(code_runner_count))
+                    result.append('   code=code' + str(code_runner_count))
+                    result.append('   source=source' + str(code_runner_count))
+                    result.append('%}')                
+                    result.append('')
+                    code_runner_count += 1
+                # Add game-runner if metadata exists
+                elif code_cell and 'game_runner' in code_cell.get('metadata', {}):
+                    runner_data = code_cell['metadata']['game_runner']
+                    result.append('')
+                    # Add liquid captures and game-runner include
+                    result.append('{% capture challenge' + str(code_runner_count) + ' %}')
+                    result.append(runner_data['challenge'])
+                    result.append('{% endcapture %}')
+                    result.append('')
+                    result.append('{% capture code' + str(code_runner_count) + ' %}')
+                    result.append(runner_data['code'])
+                    result.append('{% endcapture %}')
+                    result.append('')
+                    result.append('{% include game-runner.html')
+                    result.append('   runner_id="' + runner_data['runner_id'] + '"')
+                    result.append('   challenge=challenge' + str(code_runner_count))
+                    result.append('   code=code' + str(code_runner_count))
+                    
+                    # Add optional parameters
+                    options = runner_data.get('options', {})
+                    if options.get('hide_edit'):
+                        result.append('   hide_edit="true"')
+                    if options.get('width'):
+                        result.append(f'   width="{options["width"]}"')
+                    if options.get('height'):
+                        result.append(f'   height="{options["height"]}"')   
+                    
+                    result.append('%}')                
+                    result.append('')
+                    code_runner_count += 1
+                else:
+                    # Regular code block without code-runner
+                    result.extend(code_block_content)                
+                code_block_content = []
+        elif in_code_block:
+            code_block_content.append(line)
+        else:
+            result.append(line)
+        
+        i += 1
+    
+    # If challenge_submit is enabled, add lesson submit button at the end
+    if challenge_submit_enabled:
+        result.append('')
+        result.append('{% include lesson-submit-button.html')
+        result.append('   lesson_key="' + lesson_key + '"')
+        result.append('%}')
+        result.append('')
+    
+    return '\n'.join(result)
+
+
 # Function to convert the notebook to Markdown with front matter
 def convert_notebook_to_markdown_with_front_matter(notebook_file):
     with open(notebook_file, "r", encoding="utf-8") as file:
         notebook = nbformat.read(file, as_version=nbformat.NO_CONVERT)
         front_matter = extract_front_matter(notebook_file, notebook.cells[0])
+        
+        # Get permalink for runner_id generation
+        permalink = front_matter.get('permalink', '')
+        
         notebook.cells.pop(0)
+        
+        # Process code runner cells before conversion
+        notebook = process_code_runner_cells(notebook, permalink)
+        
+        # Process ui runner cells before conversion
+        notebook = process_ui_runner_cells(notebook, permalink)
+        
+        # Process game runner cells before conversion
+        notebook = process_game_runner_cells(notebook, permalink)
+        
         process_mermaid_cells(notebook)
         exporter = MarkdownExporter()
         markdown, _ = exporter.from_notebook_node(notebook)
+        markdown = fix_js_code_blocks(markdown) # Fix JS code blocks
+        
+        # Inject code-runner includes (and submit buttons if challenge_submit is enabled)
+        markdown = inject_code_runners(markdown, notebook, front_matter)
+        
         front_matter_content = (
             "---\n"
             + "\n".join(f"{key}: {value}" for key, value in front_matter.items())
@@ -163,4 +692,14 @@ def process_mermaid_cells(notebook):
 
 
 if __name__ == "__main__":
-    convert_notebooks()
+    # Check if a specific file was passed as an argument
+    if len(sys.argv) > 1:
+        notebook_file = sys.argv[1]
+        if os.path.exists(notebook_file):
+            print(f"Converting single notebook: {notebook_file}")
+            convert_single_notebook(notebook_file)
+        else:
+            print(f"Error: File not found: {notebook_file}")
+            sys.exit(1)
+    else:
+        convert_notebooks()

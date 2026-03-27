@@ -1,20 +1,20 @@
 # Introduction
 
-Open Coding Society `student` is a project designed to allow students to build their customized blog to support Computer Science or other education. This repository offers a wide range of resources that are taught in conjunction with the Open Coding Society 'pages' repository.
+Open Coding Society `student` is a project designed to support students in their Computer Science and Software Engineering education. It offers a wide range of resources including tech talks, code examples, and educational blogs.
 
-This GitHub Pages repository can be customized by the blogger to support computer science learning as the student works through the pathways of using JavaScript, Python/Flask, Java/Spring.
+This GitHub Pages repository can be customized by the blogger to support computer science learning as the student works through the pathways of using Javascript, Python/Flask, Java/Spring. It is intended to support course work for Computer Science and Software Engineering (CSSE), AP Computer Science Principles (APCSP or CSP), and AP Computer Science 'A' (APCSA, or CSA).
+
+"Open Coding Society's instructional model is grounded in **Connectivism**, recognizing that learning happens through diverse networks of people, platforms, and AI. OCS is refining `student` using **Merrill's structure**, deepening learning through **Fink**, ensuring access via **UDL**, and supporting our classroom through **Agile and Design Thinking ceremonies**, with a touch of **Gagné** to focus each classroom day. OCS wants to create projects that support learning for today's digital, open, and connected world."
 
 ## Student Requirements
 
-HS students will have the opportunity to create their personal GitHub Pages repository as the progress through their coursework.
-
-In general, Students and Instructors are expected to use GitHub Pages to build lessons, complete classroom hacks/challenges and perform exploritory work. This project also offers some JavaScript games and can serve as a frontend to multiple full-stack applications.
-
+HS students will have the opportunity to create their personal GitHub Pages repository as they progress through their coursework.
+In general, students and instructors are expected to use GitHub Pages to build lessons, complete classroom hacks/challenges and perform exploratory work.
 Exchange of information from this repository to you personal GitHub Pages can be done in many ways...
 
-1. student is indtend to use this repository as a template
-2. sharing or obtaining a file, ie, `wget "raw-link.ipynb" from GitHub
-2. drag and dropping a file between two opened vscode projects
+1. sharing a file, ie: `wget "raw-link.ipynb"`
+2. creating a template from this repository
+3. creating a fork to be shared by you and team members
 4. etc.
 
 ---
@@ -23,7 +23,7 @@ Exchange of information from this repository to you personal GitHub Pages can be
 
 This project is in its 4th revision (aka 4.0).
 
-The project was initially based on a project called Fastpages. But this project has diverged from those roots into an independent entity, in fact most things (like the build system), are completely different.  The decision to separate from Fastpages was influenced by it's deprecation by the authors.  It is believed by our community that the authors of Fastpages turned toward the support of Quatro.  After that change of direction Fastpages did not align with the Instructors's goals. Thus, Open Coding Society 'Pages' has more of a raw development and classroom blogging purpose.  But, we are greatful to Fastpages for their inspiration.
+The project was initially based on a project called Fastpages. But this project has diverged from those roots into an independent entity, in fact most things (like the build system), are completely different.  The decision to separate from Fastpages was influenced by it's deprecation by the authors.  It is believed by our community that the authors of Fastpages turned toward the support of Quatro.  After that change of direction Fastpages did not align with the Instructors's goals. Thus, Open Coding Society 'Pages' has more of a raw development and classroom blogging purpose. But, we are grateful to Fastpages for their inspiration.  But, we are grateful to Fastpages for their inspiration.
 
 ### License
 
@@ -31,9 +31,9 @@ The Apache license has its roots in Fastpages.  Thus, it carries that license fo
 
 ### Key Features
 
-- **Foundation Blogs**: In the GitHub.io student runtime, there are articles that can be obtained through the blog or search links.
-- **Code Examples**: Provides practical coding examples in JavaScript, including a few games, samples for index and about pages.
-- **Tools and Integrations**: Features GitHub actions for blog publishing, Utterances for blog commenting, local development support via Makefile and scripts, and styling with the Minima Theme and SASS.
+- **Code Examples**: Provides practical coding examples in JavaScript, including a platformer game, and frontend code for user databases using Python and Java backends.
+- **Educational Blogs**: Offers instructional content on various topics such as developer tools setup, deployment on AWS, SQL databases, machine learning, and data structures. It utilizes Jupyter Notebooks for interactive lessons and coding challenges, often referred to as `hacks`.
+- **Tools and Integrations**: Features GitHub actions for blog publishing, Utterances for blog commenting, local development support via Makefile and scripts, and styling with the Minima Theme and SASS. It also includes an Agile Toolkit to assist in Student Teaching, Assignment Tracking, Live Reviews, and more.
 
 ### Contributions
 
@@ -55,8 +55,8 @@ The absolutes in setup up...
 **Update `_config.yml`**: You need to modify the `_config.yml` file to reflect your repository's name. This configuration is crucial because it ensures that your project's styling is correctly applied, making your deployed site look as intended rather than unstyled or broken.
 
 ```text
-github_repo: "student" 
-baseurl: "/student"
+github_repo: "portfolio" 
+baseurl: "/portfolio"
 ```
 
 **Set Repository Name in Makefile**: Adjust the `REPO_NAME` variable in your Makefile to match your GitHub repository's name. This action facilitates the automatic updating of posts and notebooks on your local development server, improving the development process.
@@ -88,13 +88,13 @@ Quick start.  A quick start below is a reminder, but is dependent on your knowle
 Run these commands to obtain the project, then locate into the project directory with the terminal, install an extensive set of tools, and make.
 
 ```bash
-git clone <this-repo> # git clone https://github.com/open-coding-society/student.git 
+git clone <this-repo> # git clone https://github.com/open-coding-society/portfolio.git 
 cd <repo-dir>/scripts # cd student 
 ```
 
-#### Windows WSL and/or Ubuntu Users
+#### Windows WSL and/or Ubuntu or Kali Users
 
-- Execute the script: `./activate_ubuntu.sh`
+- Execute the script: `./activate_ubuntu.sh` or `./activate_kali.sh`
 
 #### macOS Users
 
@@ -108,15 +108,80 @@ cd <repo-dir>/scripts # cd student
 
 To preview the project you will need to "make" the project.
 
-### bundle install
+### Bundle install
 
 The very first time you clone run project you will need to run this Ruby command as the final part of your setup.
 
 ```bash
-./scripts/venv.sh
-source venv/bin/activate
 bundle install
 ```
+
+### Jupyter Kernels
+
+To run many of the IPYNB files you will need to install Jupyter kernels for the languages you want to use. Here are the most common and recommended kernels:
+
+#### Recommended Kernels
+
+- **Python3** (ipykernel): For Python code cells and most data science workflows.
+- **Java** (IJava or jbang-ijava): For Java code cells and Java notebooks.
+- **JavaScript** (tslab): For JavaScript code cells and JavaScript notebooks.
+
+#### Installing tslab
+
+First, Install tslab
+```
+npm install -g tslab
+```
+
+Second, confirm it's installed
+```
+tslab install --version
+```
+
+Finally, register it to your Jupyter environment
+```
+tslab install
+```
+
+#### Installing IJava or JBang
+
+**macOS (Homebrew):**
+
+```bash
+# For Java kernel (IJava)
+brew install coursier
+cs install --channel=https://github.com/SpencerPark/IJava/releases/latest/download/channel.json ijava
+# Or for jbang-ijava
+brew install jbang
+jbang app install ijava
+```
+
+**Ubuntu/Linux (apt):**
+
+```bash
+# For Java kernel (IJava)
+sudo apt install coursier
+cs install --channel=https://github.com/SpencerPark/IJava/releases/latest/download/channel.json ijava
+
+# Or for jbang-ijava
+sudo apt install jbang
+# or sudo snap install jbang --classic
+jbang app install ijava
+```
+
+#### List your installed kernels
+
+```shell
+(venv) username@machine path % jupyter kernelspec list
+Available kernels:
+  python3        /Users/username/Library/Jupyter/kernels/python3
+  java           /Users/username/Library/Jupyter/kernels/java
+  jbang-ijava    /Users/username/Library/Jupyter/kernels/jbang-ijava
+  jslab          /Users/username/Library/Jupyter/kernels/jslab
+  tslab          /Users/username/Library/Jupyter/kernels/tslab
+```
+
+Recommended Kernels
 
 ### Start the Server  
 
@@ -134,7 +199,7 @@ Start the preview server in the terminal,
 The terminal output from `make` shows the server address. "Cmd" or "Ctl" click the http location to open the preview server in a browser. Here is an example Server address message, click on the Server address to load:...
 
   ```text
-  http://0.0.0.0:4600/pages/
+  http://0.0.0.0:4599/portfolio/
   ```
 
 ### Regeneration of web application
@@ -250,7 +315,6 @@ In the front matter, you can also define things like a title and description for
   title: Jupyter Python Sample
   description: Example Blog!!!  This shows code and notes from hacks.
   type: ccc
-  courses: { csa: {week: 5} }
   ---
   ```
 
@@ -261,3 +325,104 @@ In the front matter, you can also define things like a title and description for
 - The type value will tell us which column this is going to appear under the time box supported pages.  The "ccc" stands for Code, Code, Code.
 
 - The courses will tell us which menu item it will be under, in this case, the `csa` menu, and the `week` tells it what row (week) it will appear under that menu.
+
+## Open Coding Society: Instructional Framework
+
+A flexible, inclusive, and modern teaching model grounded in **Connectivism**, with structured learning through **Merrill**, **Fink**, **UDL**, **Agile**, and select **Gagné** elements. This framework prepares learners to thrive in collaborative, networked, AI-augmented environments.
+
+---
+
+### Guiding Philosophy: Connectivism
+
+> “Learning is a process of connecting specialized nodes or information sources.” – George Siemens
+
+OCS is grounded in a **Connectivist philosophy**, recognizing that:
+
+- **Knowledge is distributed** across people, platforms, and digital tools
+- Students learn by **building and navigating networks** — with peers, mentors, experts, and AI
+- **Internet and AI** are not just resources but **learning partners**
+- **Decision-making** (what to learn, when to seek help, what tools to use) is a critical skill
+- **Diverse collaboration** and **community contribution** are essential for relevant, authentic learning
+
+#### Connectivist Practices in OCS education
+
+- Promote **open collaboration** via GitHub, blogs, scrum-team projects and cross-class projects
+- Encourage learners to **curate, remix, and build upon** knowledge from global networks
+- Teach students to **evaluate digital sources**, verify code, and contribute to public knowledge
+- Incorporate **AI tools** for coding, writing, design, reflection, and peer modeling
+
+✅ **Connectivism provides the underlying philosophy** that unifies Merrill’s structure, Fink’s depth, UDL’s accessibility, and Agile’s team-based iteration — all in a digital, networked world.
+
+---
+
+### Instructional Core: Merrill’s First Principles of Instruction
+
+> “Make instruction Effective, Efficient, Engaging.”
+
+- **Problem (Anchor):** Begin with a real-world task or problem that students must solve, `pages` is considered launch point project.
+- **Activation:** Connect to prior knowledge or personal experience, GitHub OCS contains projects from many years of instruction.
+- **Demonstration:** Show examples or models — how it’s done, `pages` has blogs and OCS has many projects to build upon.
+- **Application:** Provide practice — guided then independent, OCS learning uses sprints to practice and iterate.
+- **Integration:** Encourage students to reflect, share, or transfer skills to new contexts, students are encouraged to add to OCS.
+
+---
+
+### Learning Depth: Fink’s Significant Learning
+
+> Emphasize holistic, transformative learning.  These words and associated actions help learners become assets to the Connectivist landscape. 
+
+- **Foundational Knowledge** – Core facts, tools, syntax, concepts
+- **Application** – Use of knowledge in projects, analysis, creation
+- **Integration** – Connect coding with design, ethics, community
+- **Human Dimension** – Team roles, collaboration, self-discovery
+- **Caring** – Projects that matter to learners
+- **Metacognition** – Learning how to learn, reflect, self-evaluate
+- **Intersection** – True learning happens when all areas overlap
+
+---
+
+### Access & Inclusion: Universal Design for Learning (UDL)
+
+> Proactively reduce barriers and support diverse learners. OCS maintains social and coding platforms that support UDL thinking (GitHub, YouTube, LinkedIn, X)
+
+- **Multiple Means of Engagement** – Interests, choices, autonomy
+- **Multiple Means of Representation** – Videos, code, diagrams, demos
+- **Multiple Means of Action & Expression** – Presentations, repos, recordings, blogs
+
+UDL is not a method but a **design lens** to make learning **accessible and meaningful** for all.
+
+---
+
+### Structure & Ceremonies: Agile + Design Thinking + Gagné (selective)
+
+> Use classroom **ceremonies** for rhythm, reflection, and real-world alignment.
+
+#### Gagné Elements (selective use)
+
+- **Gain Attention** – Start with prompts, demos, tech news, or student input
+- **Set Objectives** – Clarify sprint, lesson, or project goals
+- **Reflection** – Use reflections and live reviews at the end of lessons/sprints
+
+#### Agile & Design Thinking Ceremonies
+
+- **Empathy** – Interviews, personas, build "Point of View" and “How Might We…” prompts
+- **Ideation** – Brainstorms, sticky notes, sketches, synthesize
+- **Planning** – User stories, task boards (Kanban, GitHub Issues)
+- **Sprints** – Iterative cycles with visible progress
+- **Standups/PinUps** – Feedback-oriented checkpoints
+- **Burndown Charts** – Track group/team/individual progress
+- **In-Sprint Checkpoints** – Product Owner reviews, Demo products or features, receive feedback, plan iterations
+- **Close-Sprint Assessment** - Rubric close out, learning and competency demonstrations
+- **Retrospectives** – Reflect on process and teamwork, next steps
+
+---
+
+## Summary of Learning Philosophies
+
+| Layer | Model | Role |
+|-------|-------|------|
+| **Philosophy** | Connectivism | Foundation – learning is networked, shared, tech-augmented |
+| **Core Instruction** | Merrill | Scaffolded, problem-first instruction |
+| **Depth & Growth** | Fink | Human, affective, reflective development |
+| **Access & Design** | UDL | Inclusive and flexible access to all learners |
+| **Workflow & Rhythm** | Agile + Design Thinking + Gagné | Iteration, planning, feedback, reflection ceremonies |

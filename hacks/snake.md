@@ -1,5 +1,5 @@
 ---
-layout: base
+layout: opencs
 title: Snake Game
 permalink: /snake/
 ---
